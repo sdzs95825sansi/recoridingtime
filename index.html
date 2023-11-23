@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Data Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .container {
+            display: grid;
+            grid-template-columns:  500px 500px;; /* 分为两栏，每一栏宽度相等 */
+            gap: 20px; /* 列之间的间隙 */
+        }
+        #left-column {
+            /* 样式适应左侧栏 */
+        }
+        #right-column {
+            /* 样式适应右侧栏 */
+        }
+                table {
+            border-collapse: collapse; /* 合并边框 */
+        }
+
+                table, th, td {
+            border: 1px solid black;
+            padding: 8px;
+
+            font-size: 12px; /* 调整字体大小 */
+        }
+        
+        /* 调整单元格宽度 */
+        td {
+            word-wrap: break-word;
+            white-space: normal;
+            height: auto;
+            max-width: 300px; /* 设置最大宽度 */
+            background-color: lightgrey; /* 设置单元格背景颜色 */
+        }
+
+        /* 调整单元格高度 */
+        td, th {
+          
+        }
+               #clock {
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="left-column">
+             <h1>Plan</h1>
+            <a href="file:///C:/Users/sansi/Desktop/try/indexplan4.html">Monthly Plan</a>
+                  <h1>Model</h1>
+                        <a href="file:///C:/Users/sansi/Desktop/try//indexplan5.html">Advanced Model</a>
+            <h1>Skill Training</h1>
+
+
+ <div>
+        <label for="data1">Machine Blood：</label>
+        <input type="text" id="data1" placeholder="输入数字">
+    </div>
+    <div>
+        <label for="data2">Normal Work：</label>
+        <input type="text" id="data2" placeholder="输入数字">
+    </div>
+    <div>
+        <label for="data3">Super Pen：</label>
+        <input type="text" id="data3" placeholder="输入数字">
+    </div>
+    <button onclick="addData()">提交</button>
+    <button onclick="resetData()">重置</button>
+    <div>
+        <div>
+            <span>Machine Blood：</span>
+            <span id="currentData1"></span>
+        </div>
+        <div>
+            <span>Nomarl Work：</span>
+            <span id="currentData2"></span>
+        </div>
+        <div>
+            <span>Super Pen：</span>
+            <span id="currentData3"></span>
+        </div>
+        <div>
+            <span>Total：</span>
+            <span id="sumValue"></span>
+        </div>
+        <div>
+            <span>Last Submission Time:</span>
+            <span id="lastSubmitTime"></span>
+        </div>
+    </div>
+    <div style="position: relative;">
+        <canvas id="myChart" width="20%" height="250"></canvas>
+        <div id="thresholdLabel" style="position: absolute; top: 0; left: 0; padding: 10px;">
+            <p>阈值标签和百分比：</p>
+            <ul>
+                <li>Data 1：---</li>
+                <li>Data 2：---</li>
+                <li>Data 3：---</li>
+            </ul>
+        </div>
+    </div>
+    <img src="jpg2.jpg" alt="Description of the Lv" style="display: block; margin-top: 2px; width: 500px; height: 220px;">
+    <script>
+        let inputData = JSON.parse(localStorage.getItem('inputData')) || [0, 0, 0];
+        const thresholds = [30, 100, 300, 1000, 3000, 10000, 30000];
+        let myChart;
+
+        function addData() {
+            const data1 = parseFloat(document.getElementById('data1').value);
+            const data2 = parseFloat(document.getElementById('data2').value);
+            const data3 = parseFloat(document.getElementById('data3').value);
+
+            if (!isNaN(data1)) inputData[0] += data1;
+            if (!isNaN(data2)) inputData[1] += data2;
+            if (!isNaN(data3)) inputData[2] += data3;
+
+            localStorage.setItem('inputData', JSON.stringify(inputData));
+            updateChart();
+            updateCurrentValues();
+            displayThresholdLabel();
+
+            // 保存当前时间到本地存储
+            const currentTime = new Date();
+            localStorage.setItem('lastSubmitTime', currentTime.toLocaleString());
+
+            // 更新显示提交时间
+            document.getElementById('lastSubmitTime').textContent = `${currentTime.toLocaleString()}`;
+        }
+
+        function resetData() {
+            inputData = [0, 0, 0];
+            localStorage.setItem('inputData', JSON.stringify(inputData));
+            updateChart();
+            updateCurrentValues();
+            displayThresholdLabel();
+            updateSum();
+        }
+
+        function getCurrentThreshold(value) {
+            return thresholds.find(t => t > value) || thresholds[thresholds.length - 1];
+        }
+
+        function calculatePercentage(currentThreshold, value) {
+            return (value / currentThreshold * 100);
+        }
+
+        function updateCurrentValues() {
+            document.getElementById('currentData1').textContent = inputData[0];
+            document.getElementById('currentData2').textContent = inputData[1];
+            document.getElementById('currentData3').textContent = inputData[2];
+        }
+
+        function displayThresholdLabel() {
+            const thresholdLabelsElem = document.getElementById('thresholdLabel');
+            thresholdLabelsElem.innerHTML = '<p>Rank of skill：</p><ul>';
+
+            inputData.forEach((value, index) => {
+                const currentThreshold = getCurrentThreshold(value);
+                const percentage = calculatePercentage(currentThreshold, value);
+                let label = `Lv${thresholds.indexOf(currentThreshold) + 1}`;
+                thresholdLabelsElem.innerHTML += `<li>Skill ${index + 1}：${label} - ${percentage.toFixed(2)}%</li>`;
+            });
+
+            thresholdLabelsElem.innerHTML += '</ul>';
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const percentages = [];
+
+            inputData.forEach(value => {
+                const currentThreshold = getCurrentThreshold(value);
+                const percentage = calculatePercentage(currentThreshold, value);
+                percentages.push(percentage);
+            });
+
+            const data = {
+                labels: ['Machine Blood', 'Normal Work', 'Super Pen'],
+                datasets: [{
+                    data: percentages,
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.5)',
+                        'rgba(255, 99, 132, 0.5)',
+                        'rgba(75, 192, 192, 0.5)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(75, 192, 192, 1)'
+                    ],
+                    borderWidth: 1,
+                    barThickness: 25 // 设置柱形宽度
+                }]
+            };
+
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                stepSize: 5
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSum() {
+            const sum = inputData.reduce((acc, curr) => acc + curr, 0);
+            document.getElementById('sumValue').textContent = sum;
+        }
+
+        // 加载页面时检查并显示上次提交时间
+        const lastSubmitTime = localStorage.getItem('lastSubmitTime');
+        if (lastSubmitTime) {
+            document.getElementById('lastSubmitTime').textContent = lastSubmitTime;
+        }
+
+        updateChart();
+        updateCurrentValues();
+        displayThresholdLabel();
+        updateSum();
+    </script>
+
+        </div>
+        <div id="right-column">
+ <div id="clock"></div>
+    <div id="date"></div>
+
+    <script>
+        function updateTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const timeString = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        function updateDate() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+            document.getElementById('date').textContent = dateString;
+        }
+
+        // 更新时间和日期
+        updateTime();
+        updateDate();
+
+        // 每秒更新一次时间
+        setInterval(updateTime, 1000);
+
+        // 每天更新一次日期
+        setInterval(updateDate, 86400000); // 24小时，单位为毫秒
+    </script>
+<div id="timeDifference"></div>
+
+<script>
+
+function calculateTimeDifference() {
+    const initialTime = new Date('2023-11-20T08:30:00').getTime(); // 初始时间的毫秒数
+    const currentTime = new Date().getTime(); // 当前时间的毫秒数
+
+    // 计算从初始时间到当前时间的总时间差（单位：毫秒）
+    let totalDifference = currentTime - initialTime;
+
+    // 计算相差的天数
+    const daysDifference = Math.floor(totalDifference / (1000 * 60 * 60 * 24));
+
+    // 排除每天晚上10:30到第二天早上8:30这段时间
+    const excludedHours = daysDifference * 10; // 每天的晚上10:30到第二天早上8:30是10小时
+
+    // 计算最终时间差（排除10小时/天的时间）
+    const finalDifference = totalDifference - excludedHours * 60 * 60 * 1000;
+
+    // 将毫秒转换为小时并显示
+    const differenceInHours = finalDifference / (1000 * 60 * 60);
+    document.getElementById('timeDifference').textContent = `自2023-11-20，我们已经出发: ${differenceInHours.toFixed(2)} 小时`;
+}
+
+// 计算时间差并显示
+calculateTimeDifference();
+
+// 每秒钟更新一次时间差
+setInterval(() => {
+    calculateTimeDifference();
+}, 1000);
+</script>
+                               <img src="jpg3.jpg" alt="Description of the Lv" style="display: block; margin-top: 2px; width: 500px; height: 250px;">
+         <h1>Awards</h1>
+    <table id="myTable">
+        <!-- 这里是一个示例行 -->
+        <tr>
+            <td contenteditable="true">No</td>
+            <td contenteditable="true">项目</td>
+            <td contenteditable="true">已花费时间</td>
+        </tr>
+    </table>
+    <button onclick="addRow()">增加行</button>
+    <button onclick="deleteSelectedRows()">删除选中行</button>
+    <button onclick="saveTableToStorage()">提交</button>
+
+    <script>
+        // 加载时读取数据并填充表格
+        window.onload = function() {
+            populateTableFromStorage();
+        }
+
+        function addRow() {
+            var table = document.getElementById("myTable");
+            var newRow = table.insertRow();
+            for (var i = 0; i < 3; i++) {
+                var cell = newRow.insertCell();
+                cell.contentEditable = "true";
+                cell.innerHTML = "新单元格";
+            }
+            saveTableToStorage();
+        }
+
+        function deleteSelectedRows() {
+            var table = document.getElementById("myTable");
+            var rowCount = table.rows.length;
+            for (var i = rowCount - 1; i >= 0; i--) {
+                var row = table.rows[i];
+                var checkboxes = row.getElementsByTagName("input");
+                if (checkboxes.length > 0 && checkboxes[0].checked) {
+                    table.deleteRow(i);
+                }
+            }
+            saveTableToStorage();
+        }
+
+        // 从 localStorage 读取数据填充表格
+        function populateTableFromStorage() {
+            var table = document.getElementById("myTable");
+            var tableData = JSON.parse(localStorage.getItem("tableData"));
+            if (tableData) {
+                tableData.forEach(function(rowData) {
+                    var row = table.insertRow();
+                    var cell = row.insertCell();
+                    var checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    cell.appendChild(checkbox);
+                    rowData.forEach(function(cellData) {
+                        var cell = row.insertCell();
+                        cell.contentEditable = "true";
+                        cell.innerHTML = cellData;
+                    });
+                });
+            }
+        }
+
+        // 将表格数据保存到 localStorage
+        function saveTableToStorage() {
+            var table = document.getElementById("myTable");
+            var tableData = [];
+            for (var i = 0, row; row = table.rows[i]; i++) {
+                if (i === 0) continue; // Skip header row
+                var rowData = [];
+                for (var j = 0, col; col = row.cells[j]; j++) {
+                    if (j === 0) continue; // Skip checkbox column
+                    rowData.push(col.innerHTML);
+                }
+                tableData.push(rowData);
+            }
+            localStorage.setItem("tableData", JSON.stringify(tableData));
+        }
+    </script>
+                                  <img src="jpg4.jpg" alt="Description of the Lv" style="display: block; margin-top: 2px; width: 500px; height: 280px;">
+        </div>
+    </div>
+</body>
+</html>
